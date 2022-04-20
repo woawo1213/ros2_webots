@@ -17,9 +17,9 @@ source install/local_setup.bash
 ```bash
 # terminal 1
 ros2 launch webots_ros2_epuck robot_launch.py
-# terminal 2
+# terminal 2 navigation option
 ros2 launch webots_ros2_epuck robot_tools_launch.py rviz:=true nav:=true
+# termianl 3 mapping option
+ros2 launch webots_ros2_epuck robot_tools_launch.py rviz:=true mapper:=true
 ```
 <img src="img/demo.png" width="600" height="300">
-
-### **map2world**
