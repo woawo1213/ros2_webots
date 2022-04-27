@@ -1,6 +1,6 @@
 # ros2_webots_nav2
 
-### **설치** 
+### **webots 설치** 
 ```bash
 mkdir -p webots_ws/src
 cd webots_ws/src
@@ -23,3 +23,12 @@ ros2 launch webots_ros2_epuck robot_tools_launch.py rviz:=true nav:=true
 ros2 launch webots_ros2_epuck robot_tools_launch.py rviz:=true mapper:=true
 ```
 <img src="img/demo.png" width="600" height="300">
+
+
+### **convert map to world**
+```
+map2world.py 실행
+N: 압축률
+map_name: world 를 만들기 위한 map 이름
+world_name: 생성되는 world 이름
+```
