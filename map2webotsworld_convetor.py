@@ -1,27 +1,29 @@
 #!/usr/bin/python3
 # -*- coding: utf8 -*-#
+"""
+2022.05.10 jmshin (e-mail:woawo1213@gmail.com)
+"""
 import sys
 import cv2
 import numpy as np
 
 
-class Converter:
+class Convertor:
     def __init__(self):
         self.obj_lists = []
         self.img_width = 0
         self.img_height = 0
         self.scale = 0.05
-        self.wall_height = 1.5
         self.map_name = sys.argv[1]
         self.world_name = sys.argv[2]
         self.main()
 
     def convert_map2webotsworld(self, fname):
-        img_src = cv2.imread(fname, cv2.IMREAD_GRAYSCALE)
-        self.img_height, self.img_width = np.array(img_src.shape)
+        img_src = cv2.imread(fname, cv2.IMREAD_GRAYSCALE) # (y,x)
+        self.img_height, self.img_width = np.array(img_src.shape) 
         black_px = np.where(img_src == 0)  # 0:black, 205: unknown, 255: free
         black_px = np.array(black_px)
-        point_set = sorted(set(zip(*black_px)))  # (y,x)
+        point_set = sorted(set(zip(*black_px)))  
 
         contour_src = cv2.imread(fname)
         gray = cv2.cvtColor(contour_src, cv2.COLOR_RGB2GRAY)
@@ -40,14 +42,14 @@ class Converter:
 
         # make transfrom
         sx = -self.img_width / 2
-        sy = -self.img_height / 2
+        sy = self.img_height / 2
         
         dx = [self.scale/2., self.scale/2., -self.scale/2., -self.scale/2.]
         dy = [self.scale/2., -self.scale/2., -self.scale/2., self.scale/2.]
 
         H = [[1, 0, 0, sx],
-             [0, 1, 0, sy],
-             [0, 0, 1, 0],
+             [0, -1, 0, sy],
+             [0, 0, -1, 0],
              [0, 0, 0, 1]]
         H = np.array(H, dtype=float)
 
@@ -152,7 +154,7 @@ class Converter:
         #make each object
         for obj in self.obj_lists:
 
-            f.write('\nSolid {\nchildren [\nShape {\nappearance PBRAppearance {\nbaseColor 1 1 1\nbaseColorMap ImageTexture {\nurl [\n"https://wallha.com/wallpaper/grey-gray-filter-578430"\n]\n}\n}\ngeometry DEF IFS IndexedFaceSet {\ncoord Coordinate{\npoint[\n ')
+            f.write('\nSolid {\nchildren [\nShape {\nappearance PBRAppearance {\nbaseColor 0.5 0.5 0.5\nbaseColorMap ImageTexture {\nurl [\n"https://wallha.com/wallpaper/grey-gray-filter-578430"\n]\n}\n}\ngeometry DEF IFS IndexedFaceSet {\ncoord Coordinate{\npoint[\n ')
             # lower side coordiante points
             for i in range(len(obj)):
                 x, y = obj[i][0], obj[i][1]
@@ -162,16 +164,16 @@ class Converter:
             # upper side coordiante points
             for i in range(len(obj)):
                 x, y = obj[i][0], obj[i][1]
-                uside = str(x) + " " + str(y) + " 1.0 "
+                uside = str(x) + " " + str(y) + " 0.5 "
                 f.write('%s' % uside)
             f.write(']\n} coordIndex [\n')
 
-            #make lower side plane
+            # make lower side plane
             for fnode in range(len(obj)):
                 f.write("%d, " % fnode)
             f.write("-1 ")
 
-            #make upper side plane
+            # make upper side plane
             for cnode in range(len(obj)):
                 cnode += len(obj)
                 f.write("%d, " % cnode)
@@ -195,4 +197,4 @@ class Converter:
 
 
 if __name__ == '__main__':
-    Converter()
+    Convertor()
