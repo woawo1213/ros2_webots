@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf8 -*-#
 """
-2022.05.10 jmshin (e-mail:woawo1213@gmail.com)
+2022.05.10 jm
 """
 import sys
 import cv2
@@ -11,11 +11,12 @@ import numpy as np
 class Convertor:
     def __init__(self):
         self.obj_lists = []
+        self.onebpx_trans=[]
         self.img_width = 0
         self.img_height = 0
         self.scale = 0.05
         self.map_name = sys.argv[1]
-        self.world_name = sys.argv[2]
+        self.world_name = sys.argv[2] 
         self.main()
 
     def convert_map2webotsworld(self, fname):
@@ -23,7 +24,7 @@ class Convertor:
         self.img_height, self.img_width = np.array(img_src.shape) 
         black_px = np.where(img_src == 0)  # 0:black, 205: unknown, 255: free
         black_px = np.array(black_px)
-        point_set = sorted(set(zip(*black_px)))  
+        point_set = list(set(zip(*black_px)))
 
         contour_src = cv2.imread(fname)
         gray = cv2.cvtColor(contour_src, cv2.COLOR_RGB2GRAY)
@@ -31,27 +32,53 @@ class Convertor:
         contours = contours[:-1] # except img border line
 
         contour_lists = [] #individual contour lists
+        one_px_lists=[] # for one black px lists
         for j in range(len(contours)):
             tmp = []
-            for i in range(len(contours[j])):
-                con = np.array(contours[j][i][0])
-                con = con.tolist()
-                tmp.append(tuple(con))
-            contour_lists.append(tmp)
+            if len(contours[j]) == 4:
+                one_x=int((contours[j][0][0][0]+contours[j][1][0][0]+contours[j][2][0][0]+contours[j][3][0][0])/4)
+                one_y=int((contours[j][0][0][1]+contours[j][1][0][1]+contours[j][2][0][1]+contours[j][3][0][1])/4)
+                one_px=(one_y,one_x)
+                one_px_lists.append(one_px)
+            else:
+                for i in range(len(contours[j])):
+                    con = np.array(contours[j][i][0])
+                    con = con.tolist()
+                    tmp.append(tuple(con))
+                contour_lists.append(tmp)
 
+        for i in one_px_lists:
+            if i in point_set:
+                point_set.remove(i)
 
         # make transfrom
         sx = -self.img_width / 2
         sy = self.img_height / 2
         
         dx = [self.scale/2., self.scale/2., -self.scale/2., -self.scale/2.]
-        dy = [self.scale/2., -self.scale/2., -self.scale/2., self.scale/2.]
+        dy = [-self.scale/2., self.scale/2., self.scale/2., -self.scale/2.]
 
         H = [[1, 0, 0, sx],
              [0, -1, 0, sy],
              [0, 0, -1, 0],
              [0, 0, 0, 1]]
         H = np.array(H, dtype=float)
+
+        # one pixel transform
+        one_bx_lists=[]
+        y_p,x_p=zip(*one_px_lists)
+        x_p = list(x_p)
+        y_p = list(y_p)
+        one_bx_lists.append(x_p)
+        one_bx_lists.append(y_p)
+        one_bx_lists = np.array(one_bx_lists)
+
+        one_bx_lists = np.vstack([one_bx_lists, np.zeros(one_bx_lists.shape[1])])
+        one_bx_lists = np.vstack([one_bx_lists, np.ones(one_bx_lists.shape[1])])
+
+        self.onebpx_trans = self.scale * H @ one_bx_lists
+        self.onebpx_trans = np.delete(self.onebpx_trans, -1, 0)
+        self.onebpx_trans = np.delete(self.onebpx_trans, -1, 0)
 
         # black pixel transform
         blackpx_lists = []
@@ -120,6 +147,7 @@ class Convertor:
                     nx = i[0]+dx[j]
                     ny = i[1]+dy[j]
                     cont_4points.append((nx, ny))
+            
 
             cont_4points = np.array(cont_4points)
             cont_4points = np.round(cont_4points.astype(np.float64), 4)
@@ -150,11 +178,25 @@ class Convertor:
         world_size = str(world_width) + " " + str(world_height)
         f.write('Floor{\ntranslation 0 0 0\nsize %s\nappearance Parquetry{type "light strip"}\n}' % world_size)
         
+        bp_count=0
+        for i in range(len(self.onebpx_trans[0])):
+            x, y = self.onebpx_trans[0][i], self.onebpx_trans[1][i]
+            z = 0
+            f.write('SolidBox {\n  translation ')
+            f.write("%f " %x)
+            f.write("%f " %y)
+            f.write("%f " %z)
+            f.write('\n  name "box')
+            f.write("%d" %bp_count)
+            f.write('"\n  size 0.05 0.05 1.0\n  appearance PBRAppearance {\n    baseColor 0 0 0\n  }\n  castShadows FALSE\n}\n')
+            bp_count+=1
+
+
         obj_count = 0
         #make each object
         for obj in self.obj_lists:
 
-            f.write('\nSolid {\nchildren [\nShape {\nappearance PBRAppearance {\nbaseColor 0.5 0.5 0.5\nbaseColorMap ImageTexture {\nurl [\n"https://wallha.com/wallpaper/grey-gray-filter-578430"\n]\n}\n}\ngeometry DEF IFS IndexedFaceSet {\ncoord Coordinate{\npoint[\n ')
+            f.write('\nSolid {\nchildren [\nShape {\nappearance PBRAppearance {\nbaseColor 0 0 0\n}\ngeometry DEF IFS IndexedFaceSet {\ncoord Coordinate{\npoint[\n ')
             # lower side coordiante points
             for i in range(len(obj)):
                 x, y = obj[i][0], obj[i][1]
@@ -184,7 +226,7 @@ class Convertor:
                 plane = str(wall)+", "+str(wall+1)+", "+str(wall+1+len(obj))+", "+str(wall+len(obj))+", -1 "
                 f.write("%s" % plane)
 
-            final = str(len(obj)-1)+", "+str(0)+", " + str(0+len(obj))+", "+str(1+len(obj)*2)+", -1 "
+            final = str(len(obj)-1)+", "+str(0)+", " + str(0+len(obj))+", "+str(len(obj)*2 - 1)+", -1 "
             f.write("%s" % final)
             f.write('\n]\n}\n ')
             f.write('castShadows FALSE\n}\n]\nname "solid%d"\n}' %obj_count)
@@ -195,6 +237,5 @@ class Convertor:
     def main(self):
         self.convert_map2webotsworld(self.map_name)
 
-
 if __name__ == '__main__':
-    Convertor()
+    c=Convertor()

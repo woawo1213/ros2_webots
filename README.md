@@ -3,5 +3,8 @@
 ## usage
 
 ```bash
-$ python3 map2webotsworld_convertor.py [map name] [world file name]
+$ python3 map2webotsworld_convertor.py [map file] [world file]
 ```
+
+## Convert
+<img src="pic.png" width="700" height="400">
